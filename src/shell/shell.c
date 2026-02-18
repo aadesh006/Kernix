@@ -3,32 +3,32 @@
 #include "../memory/memory.h"
 #include "../terminal/terminal.h"
 
-int strcmp(const char* a, const char* b)
-{
-    while (*a && *b && *a == *b)
-    {
-        a++; b++;
-    }
-    return *a - *b;
-}
+int strncmp(const char* s1, const char* s2, int n);
 
-void shell_execute(const char* cmd)
+void shell_execute(const char* command)
 {
-    if (strcmp(cmd, "help") == 0)
+    if (command[0] == '\0')
+        return;
+
+    if (strncmp(command, "echo ", 5) == 0)
     {
-        print("Commands:\n");
-        print(" help\n clear\n echo\n");
+        // Print everything after "echo "
+        print(command + 5);
+        print("\n");
+        return;
     }
-    else if (strcmp(cmd, "clear") == 0)
+
+    if (strncmp(command, "help", 4) == 0)
+    {
+        print("Commands:\nhelp\nclear\necho\n");
+        return;
+    }
+
+    if (strncmp(command, "clear", 5) == 0)
     {
         terminal_intialize();
+        return;
     }
-    else if (strcmp(cmd, "echo") == 0)
-    {
-        print("echo\n");
-    }
-    else
-    {
-        print("Unknown command\n");
-    }
+
+    print("Unknown command\n");
 }
