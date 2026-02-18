@@ -96,7 +96,7 @@ void panic(const char* msg)
 void kernel_main()
 {
     terminal_intialize();
-    print("Hello World! Welcome to GPOS\n");
+    print("Hello World! Welcome to Kernix v0.1\n");
 
     idt_init();
 
