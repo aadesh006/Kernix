@@ -100,19 +100,10 @@ void kernel_main()
 
     idt_init();
 
-    // Enable IRQ0 (timer) + IRQ1 (keyboard)
-    outb(0x21, 0xFC);
-
-    // Enable CPU interrupts
-    __asm__ volatile ("sti");
-
-
     keyboard_init();
     line_reset();
 
     print("> ");
-
-//Main Kernel Loop
 
     while (1)
     {

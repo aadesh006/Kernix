@@ -1,34 +1,34 @@
 ENTRY(_start)
-OUTPUT_FORMAT("binary")
+OUTPUT_FORMAT(elf32-i386)
+
 SECTIONS
 {
-    /* Use 0x100000 instead of 1M to be safe */
     . = 0x100000;
 
-    /* NOTE: The space before the colon (.text :) is important! */
-    .text :
+    /* MUST BE FIRST FOR GRUB */
+    .multiboot ALIGN(4) :
+    {
+        *(.multiboot)
+    }
+
+    .text ALIGN(4) :
     {
         *(.text)
     }
 
-    .rodata :
+    .rodata ALIGN(4) :
     {
         *(.rodata)
     }
 
-    .data :
+    .data ALIGN(4) :
     {
         *(.data)
     }
 
-    .bss :
+    .bss ALIGN(4) :
     {
         *(COMMON)
         *(.bss)
-    }
-
-    .asm :
-    {
-        *(.asm)
     }
 }
