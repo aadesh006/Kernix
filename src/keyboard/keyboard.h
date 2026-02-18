@@ -10,5 +10,6 @@ void keyboard_init();
 void keyboard_push(char c);
 bool keyboard_has_char();
 char keyboard_pop();
+void keyboard_interrupt_handler();
 
 #endif

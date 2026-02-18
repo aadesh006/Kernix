@@ -4,6 +4,7 @@
 
 #include "idt/idt.h"
 #include "io/io.h"
+#include "idt/pic.h"
 #include "keyboard/keyboard.h"
 #include "terminal/line.h"
 #include "shell/shell.h"
@@ -96,9 +97,22 @@ void panic(const char* msg)
 void kernel_main()
 {
     terminal_intialize();
-    print("Hello World! Welcome to Kernix v0.1\n");
+    print("Hello World! Welcome to GPOS\n");
 
+    //Disable interrupts during setup
+    __asm__ volatile ("cli");
+
+    //Initialize IDT
     idt_init();
+
+    //Remap PIC
+    pic_remap();
+
+    //Enable ONLY keyboard IRQ (IRQ1)
+    outb(0x21, 0xFD);
+
+    //Enable CPU interrupts
+    __asm__ volatile ("sti");
 
     keyboard_init();
     line_reset();
@@ -110,23 +124,7 @@ void kernel_main()
         if (keyboard_has_char())
         {
             char c = keyboard_pop();
-
-            if (c == '\b')
-            {
-                terminal_backspace();
-                line_feed(c);
-                continue;
-            }
-
             terminal_writechar(c, VGA_LIGHT_GREEN);
-
-            if (line_feed(c))
-            {
-                terminal_writechar('\n', VGA_LIGHT_GREEN);
-                shell_execute(line_get());
-                line_reset();
-                print("> ");
-            }
         }
         else
         {

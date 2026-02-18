@@ -44,3 +44,13 @@ irq1:
     sti
     iret
 
+[BITS 32]
+
+extern irq1_handler
+global irq1_stub
+
+irq1_stub:
+    pusha                ; save all registers
+    call irq1_handler    ; MUST match your C function name
+    popa                 ; restore registers
+    iretd                ; CRITICAL: interrupt return, NOT ret

@@ -3,6 +3,8 @@ FILES = ./build/multiboot.o \
         ./build/kernel.o \
         ./build/idt/idt.asm.o \
         ./build/idt/idt.o \
+		./build/idt/pic.o \
+		./build/io/io.o \
         ./build/memory/memory.o \
         ./build/keyboard/keyboard.o \
         ./build/terminal/line.o \
@@ -55,6 +57,14 @@ all: ./bin/kernel.elf
 ./build/multiboot.o: ./src/boot/multiboot.asm
 	mkdir -p ./build
 	nasm -f elf ./src/boot/multiboot.asm -o ./build/multiboot.o
+
+./build/idt/pic.o: ./src/idt/pic.c
+	mkdir -p ./build/idt
+	i686-elf-gcc $(INCLUDES) -I ./src/idt $(FLAGS) -std=gnu99 -c ./src/idt/pic.c -o ./build/idt/pic.o
+
+./build/io/io.o: ./src/io/io.c
+	mkdir -p ./build/io
+	i686-elf-gcc $(INCLUDES) -I ./src/io $(FLAGS) -std=gnu99 -c ./src/io/io.c -o ./build/io/io.o
 
 run:
 	cp bin/kernel.elf iso/boot/kernel.elf

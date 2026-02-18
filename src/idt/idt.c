@@ -21,25 +21,12 @@ void irq0_handler()
 
 }
 
+extern void keyboard_interrupt_handler();
+
 void irq1_handler()
 {
-    uint8_t scancode = inb(0x60);
-
-    // Ignore key releases
-    if (!(scancode & 0x80))
-    {
-        char c = scancode_to_ascii[scancode];
-        if (c)
-        {
-            keyboard_push(c);
-        }
-    }
-
-    outb(0x20, 0x20); // EOI
+    keyboard_interrupt_handler();
 }
-
-
-
 
 
 extern void idt_load(struct idtr_desc* ptr);
@@ -51,31 +38,28 @@ void idt_zero()
 void idt_set(int interrupt_no, void* address)
 {
     struct idt_desc* desc = &idt_descriptors[interrupt_no];
-    desc->offset_1 = (uint32_t) address & 0x0000ffff;
+
+    desc->offset_1 = (uint32_t) address & 0x0000FFFF;
     desc->selector = KERNEL_CODE_SELECTOR;
     desc->zero = 0;
-    desc->type_attr = 0x8E; // present, ring 0, interrupt gate
+    desc->type_attr = 0x8E;      // Present | Ring0 | 32-bit interrupt gate
     desc->offset_2 = (uint32_t) address >> 16;
 }
 
 
+extern void irq1_stub();
+
 void idt_init()
 {
     memset(idt_descriptors, 0, sizeof(idt_descriptors));
-    idtr_descriptor.limit = sizeof(idt_descriptors) -1;
+
+    idtr_descriptor.limit = sizeof(idt_descriptors) - 1;
     idtr_descriptor.base = (uint32_t) idt_descriptors;
 
-    idt_set(0,idt_zero);
+    // Keyboard IRQ = 33 after PIC remap
+    idt_set(33, irq1_stub);
 
-    //Load the interrupt
     idt_load(&idtr_descriptor);
-
-    extern void irq0();
-    idt_set(0x20, irq0);
-
-    extern void irq1();
-    idt_set(0x21, irq1);
-
 }
 
 void isr0_handler(){
