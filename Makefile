@@ -56,6 +56,11 @@ all: ./bin/kernel.elf
 	mkdir -p ./build
 	nasm -f elf ./src/boot/multiboot.asm -o ./build/multiboot.o
 
+run:
+	cp bin/kernel.elf iso/boot/kernel.elf
+	grub-mkrescue -o myos.iso iso
+	qemu-system-i386 -cdrom myos.iso -boot d -m 512
+
 clean:
 	rm -rf ./bin/*
 	rm -rf ./build/*
