@@ -3,32 +3,45 @@
 #include "../memory/memory.h"
 #include "../terminal/terminal.h"
 
-int strcmp(const char* a, const char* b)
-{
-    while (*a && *b && *a == *b)
-    {
-        a++; b++;
-    }
-    return *a - *b;
-}
+int strncmp(const char* s1, const char* s2, int n);
 
-void shell_execute(const char* cmd)
+void shell_execute(const char* command)
 {
-    if (strcmp(cmd, "help") == 0)
+    if (command[0] == '\0')
+        return;
+
+    // echo command
+    if (strncmp(command, "echo ", 5) == 0)
     {
-        print("Commands:\n");
-        print(" help\n clear\n echo\n");
+        print(command + 5);
+        print("\n");
+        return;
     }
-    else if (strcmp(cmd, "clear") == 0)
+
+    // help command
+    if (strncmp(command, "help", 4) == 0)
+    {
+        print("Available commands:\n");
+        print("help  - Show commands\n");
+        print("clear - Clear screen\n");
+        print("echo  - Print text\n");
+        print("version - Kernel info\n");
+        return;
+    }
+
+    // clear command
+    if (strncmp(command, "clear", 5) == 0)
     {
         terminal_intialize();
+        return;
     }
-    else if (strcmp(cmd, "echo") == 0)
+
+    if (strncmp(command, "version", 7) == 0)
     {
-        print("echo\n");
+        print("Kernix Kernel v0.1\n");
+        print("32-bit\n");
+        return;
     }
-    else
-    {
-        print("Unknown command\n");
-    }
+
+    print("Unknown command\n");
 }
