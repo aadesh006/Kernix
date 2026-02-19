@@ -2,6 +2,8 @@
 
 A custom 32-bit operating system built from scratch in C and x86 assembly, featuring a bootloader, protected mode kernel, interrupt handling, keyboard input, and a basic shell interface.
 
+Current Status: Integrating GRUB
+
 ## Features
 
 - **Custom Bootloader** - Written in x86 assembly with real mode to protected mode transition
