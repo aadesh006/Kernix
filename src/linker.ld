@@ -31,4 +31,7 @@ SECTIONS
     {
         *(.asm)
     }
+
+    . = ALIGN(4096);
+    _kernel_end = .;
 }
