@@ -107,7 +107,22 @@ struct heap* kernel_get_heap(void) {
     return &kernel_heap;
 }
 
+void print_uint(uint32_t val)
+{
+    char buf[11];
+    int i = 10;
+    buf[i] = '\0';
+    if (val == 0) { print("0"); return; }
+    while (val > 0 && i > 0) {
+        buf[--i] = '0' + (val % 10);
+        val /= 10;
+    }
+    print(&buf[i]);
+}
+
 //KERNEL ENTRY POINT
+
+extern uint32_t timer_ticks; // defined in idt.c, currently static
 
 void kernel_main()
 {
@@ -115,20 +130,22 @@ void kernel_main()
     print("Hello World! Welcome to Kernix v0.1\n");
 
     idt_init();
+    outb(0x21, 0xFC);
+    __asm__ volatile ("sti");
+
     paging_init();
     paging_enable();
+
     if (heap_create(&kernel_heap, (void*)KERNIX_HEAP_START, (void*)KERNIX_HEAP_END, &kernel_heap_table) < 0)
         panic("Heap initialization failed\n");
 
-    // Enable IRQ0 (timer) + IRQ1 (keyboard)
-    outb(0x21, 0xFC);
-
-    // Enable CPU interrupts
-    __asm__ volatile ("sti");
-
-
     keyboard_init();
     line_reset();
+
+    // boot timing: ticks elapsed from IRQ enable to first prompt
+    print("Boot time: ");
+    print_uint(timer_ticks * 55); // ~55ms per tick at default 18.2Hz PIT rate
+    print("ms (approx, default PIT rate)\n");
 
     print("> ");
 
