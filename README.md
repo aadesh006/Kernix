@@ -1,19 +1,22 @@
 # Kernix: A 32-bit Operating System
 
-A custom 32-bit operating system built from scratch in C and x86 assembly, featuring a bootloader, protected mode kernel, interrupt handling, keyboard input, and a basic shell interface.
+A custom 32-bit operating system built from scratch in C and x86 assembly, featuring a bootloader, protected mode kernel, interrupt handling, paging-based memory management, a heap allocator, and a basic shell interface.
 
-Current Status: Integrating GRUB
+Current Status: Memory management core complete (PMM, paging, heap) — GRUB/Multiboot2 integration not yet started
 
 ## Features
 
 - **Custom Bootloader** - Written in x86 assembly with real mode to protected mode transition
 - **32-bit Protected Mode Kernel** - Proper GDT (Global Descriptor Table) setup
-- **Interrupt Handling** - Full IDT (Interrupt Descriptor Table) with 512 interrupt vectors
+- **Interrupt Handling** - IDT (Interrupt Descriptor Table) supporting 512 interrupt vectors
 - **Programmable Interrupt Controller (PIC)** - Hardware interrupt management
 - **VGA Text Mode** - 80x25 character display with color support
 - **Keyboard Driver** - PS/2 keyboard input with circular buffer
 - **Basic Shell** - Command-line interface with built-in commands
-- **Memory Management** - Custom memory operations (memset)
+- **Physical Memory Manager (PMM)** - Bitmap-based frame allocator tracking physical memory in 4KB frames
+- **Paging / Virtual Memory Manager (VMM)** - Identity-mapped page directory and page tables, enabled via CR3/CR0
+- **Page Fault Handling** - ISR 14 reads the faulting address from CR2 and reports it before halting
+- **Heap Allocator** - Block-based allocator (4KB blocks) with a status table supporting `malloc`/`free`-style allocation, layered on top of the PMM/paging setup
 - **Modular Architecture** - Clean separation of kernel subsystems
 
 ## Project Structure
@@ -26,8 +29,8 @@ Kernix/
 │   ├── boot/
 │   │   └── boot.asm         # Bootloader (real → protected mode)
 │   ├── idt/
-│   │   ├── idt.asm          # IDT assembly routines
-│   │   ├── idt.c            # IDT implementation
+│   │   ├── idt.asm          # IDT assembly routines (incl. isr14 page fault stub)
+│   │   ├── idt.c            # IDT implementation, ISR/IRQ handlers
 │   │   └── idt.h            # IDT interface
 │   ├── io/
 │   │   └── io.h             # Port I/O operations (outb/inb)
@@ -38,8 +41,17 @@ Kernix/
 │   │   ├── keyboard.h       # Keyboard interface
 │   │   └── scancode.h       # Scancode to ASCII mapping
 │   ├── memory/
-│   │   ├── memory.c         # Memory management functions
-│   │   └── memory.h         # Memory interface
+│   │   ├── memory.c         # Low-level memory operations (memset, strncmp)
+│   │   ├── memory.h         # Memory interface
+│   │   ├── pmm/
+│   │   │   ├── pmm.c        # Bitmap physical frame allocator
+│   │   │   └── pmm.h        # PMM interface
+│   │   ├── paging/
+│   │   │   ├── paging.c     # Page directory/table setup, CR3/CR0 paging enable
+│   │   │   └── paging.h     # Paging interface
+│   │   └── heap/
+│   │       ├── heap.c       # Block-based heap allocator
+│   │       └── heap.h       # Heap interface
 │   ├── shell/
 │   │   ├── shell.c          # Command shell implementation
 │   │   └── shell.h          # Shell interface
@@ -157,6 +169,10 @@ gdb
 3. **Switch to 32-bit protected mode**
 4. **Load kernel from disk** using ATA LBA read (100 sectors)
 5. **Jump to kernel entry point** at `0x100000`
+6. **IDT initialized**, PIC remapped, interrupts enabled
+7. **Paging initialized and enabled** (identity-mapped region, CR3 loaded, PG bit set in CR0)
+8. **Heap created** on top of the mapped region
+9. **Keyboard driver and shell** started; boot-to-shell time reported via PIT tick count
 
 ### Memory Layout
 
@@ -165,15 +181,26 @@ gdb
 | `0x7C00` | Bootloader location |
 | `0x100000` (1MB) | Kernel load address |
 | `0x200000` | Stack pointer |
+| `0x400000`–`0x800000` | Heap region (block-based allocator, 4KB blocks) |
 | `0xB8000` | VGA text mode video memory |
+
+### Memory Management
+
+- **PMM** (`memory/pmm/`): tracks physical frames with a bitmap, one bit per 4KB frame.
+- **Paging** (`memory/paging/`): one page directory + page table(s), currently identity-mapping a fixed low-memory region. `CR3` is loaded with the page directory's physical address and the PG bit is set in `CR0` to enable paging.
+- **Heap** (`memory/heap/`): a block-based allocator (4KB granularity) with a status-entry table (`FREE`/`TAKEN`, `IS_FIRST`/`HAS_NEXT` flags for chaining multi-block allocations). Exposed via `heap_malloc`/`heap_free`, initialized once in `kernel_main` and reachable elsewhere in the kernel via `kernel_get_heap()`.
+- **Page Fault Handling**: ISR 14 is wired up (`idt.c`/`idt.asm`) to read the faulting address from `CR2` and report it before halting — no demand paging or recovery yet, this is diagnostic only.
+
+Known limitation: paging currently identity-maps a fixed region sized to cover the kernel and heap; there is no dynamic mapping, no demand paging, and no per-process address space yet.
 
 ### Interrupt Handling
 
-The IDT supports 512 interrupt vectors. Key interrupts:
+The IDT supports 512 interrupt vectors. Key interrupts currently wired up:
 
 - **INT 0**: Divide-by-zero exception
+- **INT 14**: Page fault (reads `CR2`, reports faulting address, halts)
+- **INT 32**: Timer interrupt (IRQ0) — also used to report approximate boot-to-shell time
 - **INT 33**: Keyboard interrupt (IRQ1)
-- **INT 32**: Timer interrupt (IRQ0)
 
 ### Shell Commands
 
@@ -184,6 +211,9 @@ The built-in shell supports:
 | `help` | Display available commands |
 | `clear` | Clear the terminal screen |
 | `echo` | Echo test command |
+| `version` | Print kernel version info |
+| `memtest` | Allocate and free memory via the heap allocator to confirm it's live |
+| `pagetest` | Deliberately access an unmapped address to trigger and demonstrate the page fault handler |
 
 ## Current Status
 
@@ -196,18 +226,23 @@ The built-in shell supports:
 - ✓ Keyboard driver with circular buffer
 - ✓ Basic shell with command parsing
 - ✓ Line editing (backspace support)
-- ✓ Memory operations (memset)
+- ✓ Low-level memory operations (memset, strncmp)
+- ✓ Bitmap physical memory manager (PMM)
+- ✓ Paging / virtual memory manager (identity-mapped, CR3/CR0 enabled)
+- ✓ Page fault handler (ISR 14, reads CR2)
+- ✓ Heap allocator (block-based, malloc/free)
+- ✓ Approximate boot-time reporting (PIT tick-based)
 
 ### In Progress / Planned
 
+- [ ] GRUB2 / Multiboot2 boot integration
 - [ ] File system support (FAT32)
 - [ ] Multitasking and process scheduling
-- [ ] Heap memory allocator
 - [ ] System call interface
 - [ ] Advanced keyboard features (shift, caps lock)
-- [ ] More shell commands
 - [ ] Disk I/O operations
-- [ ] Virtual memory management
+- [ ] Dynamic/on-demand paging, per-process address spaces
+- [ ] Cycle-accurate (rdtsc-based) interrupt latency measurement
 
 ## Development
 
@@ -251,6 +286,12 @@ qemu-system-i386 -hda ./bin/os.bin
 # Test keyboard input
 # Type commands in the QEMU window
 
+# Test the heap allocator
+memtest
+
+# Test the page fault handler
+pagetest
+
 # Test interrupts
 # Trigger divide-by-zero in kernel code
 ```
@@ -271,7 +312,7 @@ qemu-system-i386 -hda ./bin/os.bin
 
 ## Author
 
-**Aadesh Chaudhari**  
+**Aadesh Chaudhari**
 GitHub: [@aadesh006](https://github.com/aadesh006)
 
 ## Acknowledgments
@@ -283,6 +324,7 @@ GitHub: [@aadesh006](https://github.com/aadesh006)
 ---
 
 **Note**: This is an educational project created for learning operating system development. It is not intended for production use.
+
 ---
 
 ⭐ **Star this repository** if you find it helpful!
