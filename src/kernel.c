@@ -9,6 +9,19 @@
 #include "shell/shell.h"
 #include "terminal/terminal.h"
 #include "terminal/vga.h"
+#include "memory/heap/heap.h"
+#include "memory/paging/paging.h"
+
+#define KERNIX_HEAP_START  0x400000   // 4MB — safely above kernel load addr (0x100000)
+#define KERNIX_HEAP_END    0x800000   // 8MB — gives you a 4MB heap
+#define KERNIX_HEAP_BLOCKS ((KERNIX_HEAP_END - KERNIX_HEAP_START) / 4096)
+
+static HEAP_BLOCK_TABLE_ENTRY heap_table_entries[KERNIX_HEAP_BLOCKS];
+static struct heap_table kernel_heap_table = {
+    .entries = heap_table_entries,
+    .total   = KERNIX_HEAP_BLOCKS
+};
+static struct heap kernel_heap;
 
 uint16_t* video_mem = 0;
 uint16_t terminal_row = 0;
@@ -90,6 +103,9 @@ void panic(const char* msg)
     while (1)
         __asm__ volatile ("hlt");
 }
+struct heap* kernel_get_heap(void) {
+    return &kernel_heap;
+}
 
 //KERNEL ENTRY POINT
 
@@ -99,6 +115,10 @@ void kernel_main()
     print("Hello World! Welcome to Kernix v0.1\n");
 
     idt_init();
+    paging_init();
+    paging_enable();
+    if (heap_create(&kernel_heap, (void*)KERNIX_HEAP_START, (void*)KERNIX_HEAP_END, &kernel_heap_table) < 0)
+        panic("Heap initialization failed\n");
 
     // Enable IRQ0 (timer) + IRQ1 (keyboard)
     outb(0x21, 0xFC);

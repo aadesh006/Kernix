@@ -4,6 +4,8 @@ FILES = ./build/kernel.asm.o \
         ./build/idt/idt.o \
         ./build/memory/memory.o \
         ./build/memory/heap/heap.o \
+        ./build/memory/pmm/pmm.o \
+        ./build/memory/paging/paging.o \
         ./build/keyboard/keyboard.o \
         ./build/terminal/line.o \
         ./build/shell/shell.o
@@ -58,6 +60,14 @@ all: ./bin/boot.bin ./bin/kernel.bin
 ./build/shell/shell.o: ./src/shell/shell.c
 	mkdir -p ./build/shell
 	i686-elf-gcc $(INCLUDES) -I ./src/shell $(FLAGS) -c $< -o $@
+	
+./build/memory/pmm/pmm.o: ./src/memory/pmm/pmm.c
+	mkdir -p ./build/memory/pmm
+	i686-elf-gcc $(INCLUDES) -I ./src/memory/pmm $(FLAGS) -std=gnu99 -c ./src/memory/pmm/pmm.c -o ./build/memory/pmm/pmm.o
+
+./build/memory/paging/paging.o: ./src/memory/paging/paging.c
+	mkdir -p ./build/memory/paging
+	i686-elf-gcc $(INCLUDES) -I ./src/memory/paging $(FLAGS) -std=gnu99 -c ./src/memory/paging/paging.c -o ./build/memory/paging/paging.o
 
 clean:
 	rm -rf ./bin/*
