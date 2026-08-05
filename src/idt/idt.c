@@ -6,12 +6,9 @@
 #include "../keyboard/scancode.h"
 #include "../keyboard/keyboard.h"
 
-
-
 struct idt_desc idt_descriptors[GPOS_TOTAL_INTERRUPTS];
 struct idtr_desc idtr_descriptor;
-
-static uint32_t timer_ticks = 0;
+uint32_t timer_ticks = 0;
 
 void irq0_handler()
 {
@@ -21,25 +18,27 @@ void irq0_handler()
 
 }
 
+static inline uint64_t rdtsc(void) {
+    uint32_t lo, hi;
+    __asm__ volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+    return ((uint64_t)hi << 32) | lo;
+}
+
+static uint64_t last_irq1_cycles = 0;
+
 void irq1_handler()
 {
-    uint8_t scancode = inb(0x60);
+    uint64_t entry = rdtsc();
+    last_irq1_cycles = entry; // stash it
 
-    // Ignore key releases
+    uint8_t scancode = inb(0x60);
     if (!(scancode & 0x80))
     {
         char c = scancode_to_ascii[scancode];
-        if (c)
-        {
-            keyboard_push(c);
-        }
+        if (c) keyboard_push(c);
     }
-
-    outb(0x20, 0x20); // EOI
+    outb(0x20, 0x20);
 }
-
-
-
 
 
 extern void idt_load(struct idtr_desc* ptr);
