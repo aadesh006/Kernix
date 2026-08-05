@@ -120,6 +120,18 @@ void print_uint(uint32_t val)
     print(&buf[i]);
 }
 
+void print_hex(uint32_t val)
+{
+    char hex_chars[] = "0123456789ABCDEF";
+    char buf[9];
+    buf[8] = '\0';
+    for (int i = 7; i >= 0; i--) {
+        buf[i] = hex_chars[val & 0xF];
+        val >>= 4;
+    }
+    print(buf);
+}
+
 //KERNEL ENTRY POINT
 
 extern uint32_t timer_ticks; // defined in idt.c, currently static

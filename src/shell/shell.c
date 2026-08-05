@@ -28,6 +28,7 @@ void shell_execute(const char* command)
         print("echo    - Print text\n");
         print("version - Kernel info\n");
         print("memtest - Test heap allocator\n");
+        print("pagetest - Trigger deliberate page fault\n");
         return;
     }
 
@@ -59,6 +60,15 @@ void shell_execute(const char* command)
         heap_free(heap, a);
         heap_free(heap, b);
         print("freed both\n");
+        return;
+    }
+
+    if (strncmp(command, "pagetest", 8) == 0)
+    {
+        print("Triggering deliberate page fault...\n");
+        volatile uint32_t* bad_ptr = (uint32_t*)0x10000000;
+        *bad_ptr = 0xDEAD; // should page-fault here
+        print("If you see this, the address was mapped — pick a different one\n");
         return;
     }
 

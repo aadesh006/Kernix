@@ -7,6 +7,7 @@
 
 void kernel_main();
 void print(const char* str);
+void print_hex(uint32_t val);
 void panic(const char* msg);
 struct heap* kernel_get_heap(void);
 
