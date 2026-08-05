@@ -44,3 +44,14 @@ irq1:
     sti
     iret
 
+global isr14
+extern isr14_handler
+
+isr14:
+    cli
+    pushad
+    call isr14_handler
+    popad
+    add esp, 4      ; pop the CPU-pushed error code — iret does NOT expect it on the stack
+    sti
+    iret

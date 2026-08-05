@@ -19,5 +19,6 @@ struct idtr_desc
 }__attribute__((packed));
 
 void idt_init();
+void isr14_handler(void); 
 
 #endif

@@ -40,6 +40,18 @@ void irq1_handler()
     outb(0x20, 0x20);
 }
 
+void isr14_handler(void)
+{
+    uint32_t faulting_address;
+    __asm__ volatile ("mov %%cr2, %0" : "=r"(faulting_address));
+
+    print("\n*** PAGE FAULT ***\n");
+    print("Faulting address: 0x");
+    print_hex(faulting_address);
+    print("\n");
+
+    panic("Unhandled page fault\n");
+}
 
 extern void idt_load(struct idtr_desc* ptr);
 void idt_zero()
@@ -65,6 +77,8 @@ void idt_init()
     idtr_descriptor.base = (uint32_t) idt_descriptors;
 
     idt_set(0,idt_zero);
+    extern void isr14();
+    idt_set(14, isr14);
 
     //Load the interrupt
     idt_load(&idtr_descriptor);
